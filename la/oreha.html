@@ -137,10 +137,11 @@
 
     const resultDiv = document.getElementById("result");
 
-    if (res.count === 0) {
-      resultDiv.textContent = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
-      return;
-    }
+	if (!res || res.count <= 0) {
+	  resultDiv.textContent = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
+	  return;
+	}
+
 
     resultDiv.innerHTML = `
 Максимальное количество предметов: ${res.count}
