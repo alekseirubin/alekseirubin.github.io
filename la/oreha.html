@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<title>Калькулятор создания предметов</title>
+<title>Калькулятор обмена ресурсов для создания орехов</title>
 <style>
   body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; }
   label { display: block; margin-top: 10px; }
@@ -12,7 +12,7 @@
 </style>
 </head>
 <body>
-<h1>Калькулятор создания предметов</h1>
+<h1>Калькулятор обмена ресурсов</h1>
 
 <label>Количество белых ресурсов:
   <input type="number" id="white" value="30000" min="0" />
@@ -144,11 +144,11 @@ if (res.count === 0) {
 
 
     resultDiv.innerHTML = `
-Максимальное количество предметов: ${res.count}
+Максимальное количество крафтов: ${res.count}
 
 Использовано ресурсов:
-  Белых: ${res.usedWhite}
-  Зеленых: ${res.usedGreen}
+  Белых: ${res.usedWhite} (крафт: ${res.usedWhite - res.exchangedWhite}, обмен: ${res.exchangedWhite})
+  Зеленых: ${res.usedGreen} (крафт: ${res.usedGreen - res.exchangedGreen}, обмен: ${res.exchangedGreen})
   Синих: ${res.usedBlue}
 
 Остаток ресурсов после создания:
