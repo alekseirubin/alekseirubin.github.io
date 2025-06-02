@@ -2,12 +2,12 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Калькулятор предметов (с защитой от отрицательных обменов)</title>
+  <title>Калькулятор создания предметов</title>
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
     label, input { display: block; margin-bottom: 10px; }
     button { padding: 10px 20px; margin-top: 10px; }
-    .result { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+    .result { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
   </style>
 </head>
 <body>
@@ -19,13 +19,9 @@
   <div class="result" id="result"></div>
 
   <script>
-    function roundUpTo(value, step) {
-      return Math.ceil(value / step) * step;
-    }
-
     function roundDownTo(value, step) {
-  return Math.floor(value / step) * step;
-}
+      return Math.floor(value / step) * step;
+    }
 
 function canCreate(items, resources, costs, rates) {
   const { white, green, blue } = resources;
@@ -42,52 +38,76 @@ function canCreate(items, resources, costs, rates) {
 
   let deficitBlue = needBlue - availableBlue;
 
-  let usedGreenForBlue = 0;
-  let usedWhiteForBlue = 0;
+  if (deficitBlue <= 0) {
+    // Синих достаточно без обменов
+    return {
+      usedWhite: needWhite,
+      usedGreen: needGreen,
+      usedBlue: needBlue,
+      exchangedWhite: 0,
+      exchangedGreen: 0,
+      remainWhite: remWhite,
+      remainGreen: remGreen,
+      remainBlue: availableBlue - needBlue,
+    };
+  }
 
-  if (deficitBlue > 0) {
-    // Сколько зелёных нужно, округляем вниз к ближайшему 50, не превышая остаток
-    let greenNeeded = Math.floor(deficitBlue * greenToBlueRate);
-    greenNeeded = roundDownTo(greenNeeded, 50);
-    if (greenNeeded > remGreen) {
-      greenNeeded = roundDownTo(remGreen, 50);
+  // Максимально возможные обмены
+  const maxGreenExchange = Math.floor(remGreen / 50) * 50;
+  const maxWhiteExchange = Math.floor(remWhite / 100) * 100;
+
+  let bestGreenUsed = 0;
+  let bestWhiteUsed = 0;
+  let maxTotalUsed = -1;
+
+  // Перебираем зелёные обмены от максимума к 0 с шагом 50
+  for (let greenUsed = maxGreenExchange; greenUsed >= 0; greenUsed -= 50) {
+    const blueFromGreen = greenUsed / greenToBlueRate;
+    const remainingBlueNeeded = deficitBlue - blueFromGreen;
+
+    if (remainingBlueNeeded <= 0) {
+      // Зелёных хватает, белые не нужны
+      if (greenUsed > maxTotalUsed) {
+        bestGreenUsed = greenUsed;
+        bestWhiteUsed = 0;
+        maxTotalUsed = greenUsed;
+      }
+      continue;
     }
-    if (greenNeeded > 0) {
-      usedGreenForBlue = greenNeeded;
-      remGreen -= usedGreenForBlue;
-      availableBlue += Math.floor(usedGreenForBlue / greenToBlueRate);
-      deficitBlue = needBlue - availableBlue;
+
+    // Сколько белых нужно для оставшегося дефицита синих
+    let whiteNeeded = remainingBlueNeeded * whiteToBlueRate;
+    whiteNeeded = Math.ceil(whiteNeeded / 100) * 100; // округляем вверх к 100
+
+    if (whiteNeeded <= maxWhiteExchange) {
+      const totalUsed = greenUsed + whiteNeeded;
+      if (totalUsed > maxTotalUsed) {
+        bestGreenUsed = greenUsed;
+        bestWhiteUsed = whiteNeeded;
+        maxTotalUsed = totalUsed;
+      }
     }
   }
 
-  if (deficitBlue > 0) {
-    // Сколько белых нужно, округляем вниз к ближайшему 100, не превышая остаток
-    let whiteNeeded = Math.floor(deficitBlue * whiteToBlueRate);
-    whiteNeeded = roundDownTo(whiteNeeded, 100);
-    if (whiteNeeded > remWhite) {
-      whiteNeeded = roundDownTo(remWhite, 100);
-    }
-    if (whiteNeeded > 0) {
-      usedWhiteForBlue = whiteNeeded;
-      remWhite -= usedWhiteForBlue;
-      availableBlue += Math.floor(usedWhiteForBlue / whiteToBlueRate);
-      deficitBlue = needBlue - availableBlue;
-    }
-  }
+  // Если не нашли подходящий вариант — невозможно покрыть дефицит
+  if (maxTotalUsed < 0) return null;
 
-  usedWhiteForBlue = Math.max(usedWhiteForBlue, 0);
-  usedGreenForBlue = Math.max(usedGreenForBlue, 0);
+  // Проверяем, что после обмена ресурсов хватает
+  remGreen -= bestGreenUsed;
+  remWhite -= bestWhiteUsed;
+  availableBlue += (bestGreenUsed / greenToBlueRate) + (bestWhiteUsed / whiteToBlueRate);
 
-  if (deficitBlue > 0 || remWhite < 0 || remGreen < 0) {
-    return null;
-  }
+  if (remGreen < 0 || remWhite < 0) return null;
+
+  deficitBlue = needBlue - availableBlue;
+  if (deficitBlue > 0) return null; // всё ещё не хватает
 
   return {
-    usedWhite: needWhite + usedWhiteForBlue,
-    usedGreen: needGreen + usedGreenForBlue,
+    usedWhite: needWhite + bestWhiteUsed,
+    usedGreen: needGreen + bestGreenUsed,
     usedBlue: needBlue,
-    exchangedWhite: usedWhiteForBlue,
-    exchangedGreen: usedGreenForBlue,
+    exchangedWhite: bestWhiteUsed,
+    exchangedGreen: bestGreenUsed,
     remainWhite: remWhite,
     remainGreen: remGreen,
     remainBlue: availableBlue - needBlue,
@@ -104,6 +124,7 @@ function canCreate(items, resources, costs, rates) {
       const rates = { greenToBlueRate: 6.25, whiteToBlueRate: 12.5 };
       const resources = { white, green, blue };
 
+      // Ищем максимум предметов: сначала экспоненциально, потом бинарным поиском
       let low = 0;
       let high = 1;
       while (canCreate(high, resources, costs, rates)) {
@@ -128,7 +149,7 @@ function canCreate(items, resources, costs, rates) {
       }
 
       if (!best) {
-        document.getElementById("result").innerHTML = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
+        document.getElementById("result").innerText = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
         return;
       }
 
@@ -136,17 +157,16 @@ function canCreate(items, resources, costs, rates) {
       const greenExchanges = best.exchangedGreen > 0 ? best.exchangedGreen / 50 : 0;
 
       document.getElementById("result").innerHTML = `
-        <strong>Максимум предметов:</strong> ${bestCount}<br>
-        <strong>Потрачено белых:</strong> ${best.usedWhite.toFixed(2)} (обменяно: ${best.exchangedWhite.toFixed(2)}, обменов: ${whiteExchanges.toFixed(2)})<br>
-        <strong>Потрачено зелёных:</strong> ${best.usedGreen.toFixed(2)} (обменяно: ${best.exchangedGreen.toFixed(2)}, обменов: ${greenExchanges.toFixed(2)})<br>
-        <strong>Потрачено синих:</strong> ${best.usedBlue}<br>
-        <strong>Осталось белых:</strong> ${best.remainWhite.toFixed(2)}<br>
-        <strong>Осталось зелёных:</strong> ${best.remainGreen.toFixed(2)}<br>
-        <strong>Осталось синих:</strong> ${best.remainBlue.toFixed(2)}
+        Максимум предметов: <b>${bestCount}</b>\n
+        Потрачено белых: <b>${best.usedWhite.toFixed(2)}</b> (обменяно: ${best.exchangedWhite.toFixed(2)}, обменов: ${whiteExchanges.toFixed(2)})\n
+        Потрачено зелёных: <b>${best.usedGreen.toFixed(2)}</b> (обменяно: ${best.exchangedGreen.toFixed(2)}, обменов: ${greenExchanges.toFixed(2)})\n
+        Потрачено синих: <b>${best.usedBlue}</b>\n
+        Осталось белых: <b>${best.remainWhite.toFixed(2)}</b>\n
+        Осталось зелёных: <b>${best.remainGreen.toFixed(2)}</b>\n
+        Осталось синих: <b>${best.remainBlue.toFixed(2)}</b>
       `;
     }
   </script>
-
   
 <!-- Yandex.Metrika counter -->
 <script type="text/javascript" >
