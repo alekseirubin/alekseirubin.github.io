@@ -1,172 +1,200 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Калькулятор создания предметов</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    label, input { display: block; margin-bottom: 10px; }
-    button { padding: 10px 20px; margin-top: 10px; }
-    .result { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; white-space: pre-wrap; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Калькулятор ресурсов для предметов</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 0 10px; }
+  label { display: block; margin-top: 10px; }
+  input { width: 100px; margin-left: 10px; }
+  button { margin-top: 15px; padding: 8px 15px; }
+  .result { margin-top: 20px; background: #f0f0f0; padding: 15px; border-radius: 5px; }
+</style>
 </head>
 <body>
-  <h1>Калькулятор создания предметов</h1>
-  <label>Доступно белых ресурсов: <input type="number" id="white" value="30000" /></label>
-  <label>Доступно зеленых ресурсов: <input type="number" id="green" value="16000" /></label>
-  <label>Доступно синих ресурсов: <input type="number" id="blue" value="5000" /></label>
-  <button onclick="calculate()">Рассчитать</button>
-  <div class="result" id="result"></div>
 
-  <script>
-    function roundDownTo(value, step) {
-      return Math.floor(value / step) * step;
+<h1>Калькулятор ресурсов для создания предметов</h1>
+
+<div>
+  <label>Белые ресурсы: <input type="number" id="white" value="30000" min="0" /></label>
+  <label>Зеленые ресурсы: <input type="number" id="green" value="1600011" min="0" /></label>
+  <label>Синие ресурсы: <input type="number" id="blue" value="5000" min="0" /></label>
+</div>
+
+<button id="calculateBtn">Рассчитать</button>
+
+<div class="result" id="result"></div>
+
+<script>
+  // Константы (стоимость предмета и курсы обмена)
+  const COST_WHITE = 86;
+  const COST_GREEN = 45;
+  const COST_BLUE = 33;
+
+  const GREEN_TO_BLUE_RATE = 6.25; // 1 синий = 6.25 зеленых
+  const WHITE_TO_BLUE_RATE = 12.5; // 1 синий = 12.5 белых
+
+  function canCreate(items, resources, costs, rates, allowExchange) {
+    const { white, green, blue } = resources;
+    const { white: wCost, green: gCost, blue: bCost } = costs;
+    const { greenToBlueRate, whiteToBlueRate } = rates;
+
+    let needWhite = items * wCost;
+    let needGreen = items * gCost;
+    let needBlue = items * bCost;
+
+    let remWhite = white - needWhite;
+    let remGreen = green - needGreen;
+    let availableBlue = blue;
+
+    let deficitBlue = needBlue - availableBlue;
+
+    if (deficitBlue <= 0) {
+      // Синих хватает, обмен не нужен
+      return {
+        possible: true,
+        usedWhite: needWhite,
+        usedGreen: needGreen,
+        usedBlue: needBlue,
+        exchangedWhite: 0,
+        exchangedGreen: 0,
+        remainWhite: remWhite,
+        remainGreen: remGreen,
+        remainBlue: availableBlue - needBlue,
+      };
     }
 
-	function canCreate(items, resources, costs, rates) {
-	  const { white, green, blue } = resources;
-	  const { white: wCost, green: gCost, blue: bCost } = costs;
-	  const { greenToBlueRate, whiteToBlueRate } = rates;
-
-	  let needWhite = items * wCost;
-	  let needGreen = items * gCost;
-	  let needBlue = items * bCost;
-
-	  let remWhite = white - needWhite;
-	  let remGreen = green - needGreen;
-	  let availableBlue = blue;
-
-	  let deficitBlue = needBlue - availableBlue;
-
-	  if (deficitBlue <= 0) {
-		// Синих достаточно без обменов
-		return {
-		  usedWhite: needWhite,
-		  usedGreen: needGreen,
-		  usedBlue: needBlue,
-		  exchangedWhite: 0,
-		  exchangedGreen: 0,
-		  remainWhite: remWhite,
-		  remainGreen: remGreen,
-		  remainBlue: availableBlue - needBlue,
-		};
-	  }
-
-	  // Максимально возможные обмены
-	  const maxGreenExchange = Math.floor(remGreen / 50) * 50;
-	  const maxWhiteExchange = Math.floor(remWhite / 100) * 100;
-
-	  let bestGreenUsed = 0;
-	  let bestWhiteUsed = 0;
-	  let maxTotalUsed = -1;
-
-	  // Перебираем зелёные обмены от максимума к 0 с шагом 50
-	  for (let greenUsed = maxGreenExchange; greenUsed >= 0; greenUsed -= 50) {
-		const blueFromGreen = greenUsed / greenToBlueRate;
-		const remainingBlueNeeded = deficitBlue - blueFromGreen;
-
-		if (remainingBlueNeeded <= 0) {
-		  // Зелёных хватает, белые не нужны
-		  if (greenUsed > maxTotalUsed) {
-			bestGreenUsed = greenUsed;
-			bestWhiteUsed = 0;
-			maxTotalUsed = greenUsed;
-		  }
-		  continue;
-		}
-
-		// Сколько белых нужно для оставшегося дефицита синих
-		let whiteNeeded = remainingBlueNeeded * whiteToBlueRate;
-		whiteNeeded = Math.ceil(whiteNeeded / 100) * 100; // округляем вверх к 100
-
-		if (whiteNeeded <= maxWhiteExchange) {
-		  const totalUsed = greenUsed + whiteNeeded;
-		  if (totalUsed > maxTotalUsed) {
-			bestGreenUsed = greenUsed;
-			bestWhiteUsed = whiteNeeded;
-			maxTotalUsed = totalUsed;
-		  }
-		}
-	  }
-
-	  // Если не нашли подходящий вариант — невозможно покрыть дефицит
-	  if (maxTotalUsed < 0) return null;
-
-	  // Проверяем, что после обмена ресурсов хватает
-	  remGreen -= bestGreenUsed;
-	  remWhite -= bestWhiteUsed;
-	  availableBlue += (bestGreenUsed / greenToBlueRate) + (bestWhiteUsed / whiteToBlueRate);
-
-	  if (remGreen < 0 || remWhite < 0) return null;
-
-	  deficitBlue = needBlue - availableBlue;
-	  if (deficitBlue > 0) return null; // всё ещё не хватает
-
-	  return {
-		usedWhite: needWhite + bestWhiteUsed,
-		usedGreen: needGreen + bestGreenUsed,
-		usedBlue: needBlue,
-		exchangedWhite: bestWhiteUsed,
-		exchangedGreen: bestGreenUsed,
-		remainWhite: remWhite,
-		remainGreen: remGreen,
-		remainBlue: availableBlue - needBlue,
-	  };
-	}
-
-
-    function calculate() {
-      const white = parseFloat(document.getElementById("white").value);
-      const green = parseFloat(document.getElementById("green").value);
-      const blue = parseFloat(document.getElementById("blue").value);
-
-      const costs = { white: 86, green: 45, blue: 33 };
-      const rates = { greenToBlueRate: 6.25, whiteToBlueRate: 12.5 };
-      const resources = { white, green, blue };
-
-      // Ищем максимум предметов: сначала экспоненциально, потом бинарным поиском
-      let low = 0;
-      let high = 1;
-      while (canCreate(high, resources, costs, rates)) {
-        low = high;
-        high *= 2;
-      }
-
-      let best = null;
-      let bestCount = 0;
-
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        const res = canCreate(mid, resources, costs, rates);
-
-        if (res) {
-          best = res;
-          bestCount = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
-
-      if (!best) {
-        document.getElementById("result").innerText = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
-        return;
-      }
-
-      const whiteExchanges = best.exchangedWhite > 0 ? best.exchangedWhite / 100 : 0;
-      const greenExchanges = best.exchangedGreen > 0 ? best.exchangedGreen / 50 : 0;
-
-      document.getElementById("result").innerHTML = `
-        Максимум предметов: <b>${bestCount}</b>\n
-        Потрачено белых: <b>${best.usedWhite.toFixed(2)}</b> (обменяно: ${best.exchangedWhite.toFixed(2)}, обменов: ${whiteExchanges.toFixed(2)})\n
-        Потрачено зелёных: <b>${best.usedGreen.toFixed(2)}</b> (обменяно: ${best.exchangedGreen.toFixed(2)}, обменов: ${greenExchanges.toFixed(2)})\n
-        Потрачено синих: <b>${best.usedBlue}</b>\n
-        Осталось белых: <b>${best.remainWhite.toFixed(2)}</b>\n
-        Осталось зелёных: <b>${best.remainGreen.toFixed(2)}</b>\n
-        Осталось синих: <b>${best.remainBlue.toFixed(2)}</b>
-      `;
+    if (!allowExchange) {
+      // Обмен запрещён, но синих не хватает — нельзя создать
+      return { possible: false };
     }
-  </script>
+
+    // Рассчитываем минимально необходимые обмены чтобы покрыть дефицит синих
+
+    // Сначала пытаемся покрыть дефицит зелёными (обмен кратен 50)
+    let greenNeeded = Math.min(remGreen, Math.ceil(deficitBlue * greenToBlueRate / 50) * 50);
+    let blueFromGreen = greenNeeded / greenToBlueRate;
+    let remainingDeficit = deficitBlue - blueFromGreen;
+
+    let whiteNeeded = 0;
+    if (remainingDeficit > 0) {
+      // Покрываем остаток белыми (обмен кратен 100)
+      whiteNeeded = Math.min(remWhite, Math.ceil(remainingDeficit * whiteToBlueRate / 100) * 100);
+      let blueFromWhite = whiteNeeded / whiteToBlueRate;
+      remainingDeficit -= blueFromWhite;
+    }
+
+    if (remainingDeficit > 0) {
+      // Не хватает ресурсов для обмена
+      return { possible: false };
+    }
+
+    // Проверяем, что не используем больше ресурсов, чем есть
+    if (greenNeeded > remGreen || whiteNeeded > remWhite) {
+      return { possible: false };
+    }
+
+    remGreen -= greenNeeded;
+    remWhite -= whiteNeeded;
+    availableBlue += (greenNeeded / greenToBlueRate) + (whiteNeeded / whiteToBlueRate);
+
+    if (availableBlue < needBlue) return { possible: false };
+
+    return {
+      possible: true,
+      usedWhite: needWhite + whiteNeeded,
+      usedGreen: needGreen + greenNeeded,
+      usedBlue: needBlue,
+      exchangedWhite: whiteNeeded,
+      exchangedGreen: greenNeeded,
+      remainWhite: remWhite,
+      remainGreen: remGreen,
+      remainBlue: availableBlue - needBlue,
+    };
+  }
+
+  function maxItems(resources, costs, rates) {
+    let left = 0;
+    // Верхняя граница для бинарного поиска — грубо, по белым, зеленым и синим ресурсам
+    let right = Math.floor(resources.white / costs.white) + 
+                Math.floor(resources.green / costs.green) + 
+                Math.floor(resources.blue / costs.blue);
+
+    let bestResult = null;
+    let bestCount = 0;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+
+      // Проверяем без обмена
+      const noExchange = canCreate(mid, resources, costs, rates, false);
+      // Проверяем с обменом
+      const withExchange = canCreate(mid, resources, costs, rates, true);
+
+      // Выбираем лучший вариант, если он есть
+      let candidate = null;
+      if (noExchange.possible && withExchange.possible) {
+        // Выбираем вариант с максимальным использованием ресурсов (чтобы максимизировать обмены)
+        candidate = (withExchange.usedWhite + withExchange.usedGreen) > (noExchange.usedWhite + noExchange.usedGreen)
+          ? withExchange
+          : noExchange;
+      } else if (noExchange.possible) {
+        candidate = noExchange;
+      } else if (withExchange.possible) {
+        candidate = withExchange;
+      }
+
+      if (candidate) {
+        bestResult = candidate;
+        bestCount = mid;
+        left = mid + 1;
+      } else {
+        right = mid - 1;
+      }
+    }
+
+    return { count: bestCount, details: bestResult };
+  }
+
+  document.getElementById('calculateBtn').addEventListener('click', () => {
+    const white = parseInt(document.getElementById('white').value, 10) || 0;
+    const green = parseInt(document.getElementById('green').value, 10) || 0;
+    const blue = parseInt(document.getElementById('blue').value, 10) || 0;
+
+    const resources = { white, green, blue };
+    const costs = { white: COST_WHITE, green: COST_GREEN, blue: COST_BLUE };
+    const rates = { greenToBlueRate: GREEN_TO_BLUE_RATE, whiteToBlueRate: WHITE_TO_BLUE_RATE };
+
+    const result = maxItems(resources, costs, rates);
+
+    const r = result.details;
+    const count = result.count;
+
+    const resDiv = document.getElementById('result');
+    if (!r || !r.possible || count === 0) {
+      resDiv.innerHTML = `<strong>Невозможно создать ни одного предмета с текущими ресурсами.</strong>`;
+      return;
+    }
+
+resDiv.innerHTML = `
+  <strong>Максимальное количество предметов:</strong> ${count} <br/>
+  <strong>Использовано ресурсов:</strong><br/>
+  &nbsp;&nbsp;Белых: ${r.usedWhite} (обменено: ${r.exchangedWhite})<br/>
+  &nbsp;&nbsp;Зеленых: ${r.usedGreen} (обменено: ${r.exchangedGreen})<br/>
+  &nbsp;&nbsp;Синих: ${r.usedBlue}<br/>
+  <strong>Остаток ресурсов после создания:</strong><br/>
+  &nbsp;&nbsp;Белых: ${Math.floor(r.remainWhite)}<br/>
+  &nbsp;&nbsp;Зеленых: ${Math.floor(r.remainGreen)}<br/>
+  &nbsp;&nbsp;Синих: ${Math.floor(r.remainBlue)}<br/>
+  <strong>Количество обменов:</strong><br/>
+  &nbsp;&nbsp;Белых на синие: ${Math.floor(r.exchangedWhite / 100)}<br/>
+  &nbsp;&nbsp;Зеленых на синие: ${Math.floor(r.exchangedGreen / 50)}
+`;
+
+  });
+</script>
+
   
 <!-- Yandex.Metrika counter -->
 <script type="text/javascript" >
