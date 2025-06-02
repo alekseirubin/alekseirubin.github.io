@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Калькулятор предметов (без верхнего лимита)</title>
+  <title>Калькулятор предметов (с защитой от отрицательных обменов)</title>
   <style>
     body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
     label, input { display: block; margin-bottom: 10px; }
@@ -73,6 +73,10 @@
         }
       }
 
+      // Защита: обмены не могут быть отрицательными
+      usedWhiteForBlue = Math.max(usedWhiteForBlue, 0);
+      usedGreenForBlue = Math.max(usedGreenForBlue, 0);
+
       if (deficitBlue > 0 || remWhite < 0 || remGreen < 0) {
         return null;
       }
@@ -98,15 +102,13 @@
       const rates = { greenToBlueRate: 6.25, whiteToBlueRate: 12.5 };
       const resources = { white, green, blue };
 
-      // Этап 1: Экспоненциальный рост, чтобы найти верхнюю границу
       let low = 0;
       let high = 1;
       while (canCreate(high, resources, costs, rates)) {
         low = high;
-        high *= 2; // удваиваем пока возможно создавать
+        high *= 2;
       }
 
-      // Этап 2: бинарный поиск между low и high
       let best = null;
       let bestCount = 0;
 
@@ -128,10 +130,13 @@
         return;
       }
 
+      const whiteExchanges = best.exchangedWhite > 0 ? best.exchangedWhite / 100 : 0;
+      const greenExchanges = best.exchangedGreen > 0 ? best.exchangedGreen / 50 : 0;
+
       document.getElementById("result").innerHTML = `
         <strong>Максимум предметов:</strong> ${bestCount}<br>
-        <strong>Потрачено белых:</strong> ${best.usedWhite.toFixed(2)} (обменяно: ${best.exchangedWhite.toFixed(2)}, обменов: ${best.exchangedWhite ? best.exchangedWhite / 100 : 0})<br>
-        <strong>Потрачено зелёных:</strong> ${best.usedGreen.toFixed(2)} (обменяно: ${best.exchangedGreen.toFixed(2)}, обменов: ${best.exchangedGreen ? best.exchangedGreen / 50 : 0})<br>
+        <strong>Потрачено белых:</strong> ${best.usedWhite.toFixed(2)} (обменяно: ${best.exchangedWhite.toFixed(2)}, обменов: ${whiteExchanges.toFixed(2)})<br>
+        <strong>Потрачено зелёных:</strong> ${best.usedGreen.toFixed(2)} (обменяно: ${best.exchangedGreen.toFixed(2)}, обменов: ${greenExchanges.toFixed(2)})<br>
         <strong>Потрачено синих:</strong> ${best.usedBlue}<br>
         <strong>Осталось белых:</strong> ${best.remainWhite.toFixed(2)}<br>
         <strong>Осталось зелёных:</strong> ${best.remainGreen.toFixed(2)}<br>
@@ -139,6 +144,7 @@
       `;
     }
   </script>
+
   
 <!-- Yandex.Metrika counter -->
 <script type="text/javascript" >
