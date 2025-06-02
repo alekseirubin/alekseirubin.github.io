@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Калькулятор предметов (без верхнего лимита)</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    label, input { display: block; margin-bottom: 10px; }
+    button { padding: 10px 20px; margin-top: 10px; }
+    .result { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Калькулятор создания предметов</h1>
+  <label>Доступно белых ресурсов: <input type="number" id="white" value="30000" /></label>
+  <label>Доступно зеленых ресурсов: <input type="number" id="green" value="16000" /></label>
+  <label>Доступно синих ресурсов: <input type="number" id="blue" value="5000" /></label>
+  <button onclick="calculate()">Рассчитать</button>
+  <div class="result" id="result"></div>
+
+  <script>
+    function roundUpTo(value, step) {
+      return Math.ceil(value / step) * step;
+    }
+
+    function canCreate(items, resources, costs, rates) {
+      const { white, green, blue } = resources;
+      const { white: wCost, green: gCost, blue: bCost } = costs;
+      const { greenToBlueRate, whiteToBlueRate } = rates;
+
+      let needWhite = items * wCost;
+      let needGreen = items * gCost;
+      let needBlue = items * bCost;
+
+      let remWhite = white - needWhite;
+      let remGreen = green - needGreen;
+      let availableBlue = blue;
+
+      let deficitBlue = needBlue - availableBlue;
+
+      let usedGreenForBlue = 0;
+      let usedWhiteForBlue = 0;
+
+      if (deficitBlue > 0) {
+        const greenNeeded = roundUpTo(deficitBlue * greenToBlueRate, 50);
+
+        if (greenNeeded <= remGreen) {
+          usedGreenForBlue = greenNeeded;
+          remGreen -= usedGreenForBlue;
+          availableBlue += Math.floor(usedGreenForBlue / greenToBlueRate);
+          deficitBlue = needBlue - availableBlue;
+        } else {
+          usedGreenForBlue = Math.floor(remGreen / 50) * 50;
+          remGreen -= usedGreenForBlue;
+          availableBlue += Math.floor(usedGreenForBlue / greenToBlueRate);
+          deficitBlue = needBlue - availableBlue;
+        }
+      }
+
+      if (deficitBlue > 0) {
+        const whiteNeeded = roundUpTo(deficitBlue * whiteToBlueRate, 100);
+
+        if (whiteNeeded <= remWhite) {
+          usedWhiteForBlue = whiteNeeded;
+          remWhite -= usedWhiteForBlue;
+          availableBlue += Math.floor(usedWhiteForBlue / whiteToBlueRate);
+          deficitBlue = needBlue - availableBlue;
+        } else {
+          usedWhiteForBlue = Math.floor(remWhite / 100) * 100;
+          remWhite -= usedWhiteForBlue;
+          availableBlue += Math.floor(usedWhiteForBlue / whiteToBlueRate);
+          deficitBlue = needBlue - availableBlue;
+        }
+      }
+
+      if (deficitBlue > 0 || remWhite < 0 || remGreen < 0) {
+        return null;
+      }
+
+      return {
+        usedWhite: needWhite + usedWhiteForBlue,
+        usedGreen: needGreen + usedGreenForBlue,
+        usedBlue: needBlue,
+        exchangedWhite: usedWhiteForBlue,
+        exchangedGreen: usedGreenForBlue,
+        remainWhite: remWhite,
+        remainGreen: remGreen,
+        remainBlue: availableBlue - needBlue,
+      };
+    }
+
+    function calculate() {
+      const white = parseFloat(document.getElementById("white").value);
+      const green = parseFloat(document.getElementById("green").value);
+      const blue = parseFloat(document.getElementById("blue").value);
+
+      const costs = { white: 86, green: 45, blue: 33 };
+      const rates = { greenToBlueRate: 6.25, whiteToBlueRate: 12.5 };
+      const resources = { white, green, blue };
+
+      // Этап 1: Экспоненциальный рост, чтобы найти верхнюю границу
+      let low = 0;
+      let high = 1;
+      while (canCreate(high, resources, costs, rates)) {
+        low = high;
+        high *= 2; // удваиваем пока возможно создавать
+      }
+
+      // Этап 2: бинарный поиск между low и high
+      let best = null;
+      let bestCount = 0;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const res = canCreate(mid, resources, costs, rates);
+
+        if (res) {
+          best = res;
+          bestCount = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      if (!best) {
+        document.getElementById("result").innerHTML = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
+        return;
+      }
+
+      document.getElementById("result").innerHTML = `
+        <strong>Максимум предметов:</strong> ${bestCount}<br>
+        <strong>Потрачено белых:</strong> ${best.usedWhite.toFixed(2)} (обменяно: ${best.exchangedWhite.toFixed(2)}, обменов: ${best.exchangedWhite ? best.exchangedWhite / 100 : 0})<br>
+        <strong>Потрачено зелёных:</strong> ${best.usedGreen.toFixed(2)} (обменяно: ${best.exchangedGreen.toFixed(2)}, обменов: ${best.exchangedGreen ? best.exchangedGreen / 50 : 0})<br>
+        <strong>Потрачено синих:</strong> ${best.usedBlue}<br>
+        <strong>Осталось белых:</strong> ${best.remainWhite.toFixed(2)}<br>
+        <strong>Осталось зелёных:</strong> ${best.remainGreen.toFixed(2)}<br>
+        <strong>Осталось синих:</strong> ${best.remainBlue.toFixed(2)}
+      `;
+    }
+  </script>
+</body>
+</html>
