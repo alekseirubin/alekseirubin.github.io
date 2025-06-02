@@ -137,10 +137,10 @@
 
     const resultDiv = document.getElementById("result");
 
-	if (!res || res.count <= 0) {
-	  resultDiv.textContent = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
-	  return;
-	}
+if (res.count === 0) {
+  resultDiv.textContent = "Невозможно создать ни одного предмета с имеющимися ресурсами.";
+  return;
+}
 
 
     resultDiv.innerHTML = `
