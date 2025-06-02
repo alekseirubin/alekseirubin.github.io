@@ -23,75 +23,77 @@
       return Math.ceil(value / step) * step;
     }
 
-    function canCreate(items, resources, costs, rates) {
-      const { white, green, blue } = resources;
-      const { white: wCost, green: gCost, blue: bCost } = costs;
-      const { greenToBlueRate, whiteToBlueRate } = rates;
+    function roundDownTo(value, step) {
+  return Math.floor(value / step) * step;
+}
 
-      let needWhite = items * wCost;
-      let needGreen = items * gCost;
-      let needBlue = items * bCost;
+function canCreate(items, resources, costs, rates) {
+  const { white, green, blue } = resources;
+  const { white: wCost, green: gCost, blue: bCost } = costs;
+  const { greenToBlueRate, whiteToBlueRate } = rates;
 
-      let remWhite = white - needWhite;
-      let remGreen = green - needGreen;
-      let availableBlue = blue;
+  let needWhite = items * wCost;
+  let needGreen = items * gCost;
+  let needBlue = items * bCost;
 
-      let deficitBlue = needBlue - availableBlue;
+  let remWhite = white - needWhite;
+  let remGreen = green - needGreen;
+  let availableBlue = blue;
 
-      let usedGreenForBlue = 0;
-      let usedWhiteForBlue = 0;
+  let deficitBlue = needBlue - availableBlue;
 
-      if (deficitBlue > 0) {
-        const greenNeeded = roundUpTo(deficitBlue * greenToBlueRate, 50);
+  let usedGreenForBlue = 0;
+  let usedWhiteForBlue = 0;
 
-        if (greenNeeded <= remGreen) {
-          usedGreenForBlue = greenNeeded;
-          remGreen -= usedGreenForBlue;
-          availableBlue += Math.floor(usedGreenForBlue / greenToBlueRate);
-          deficitBlue = needBlue - availableBlue;
-        } else {
-          usedGreenForBlue = Math.floor(remGreen / 50) * 50;
-          remGreen -= usedGreenForBlue;
-          availableBlue += Math.floor(usedGreenForBlue / greenToBlueRate);
-          deficitBlue = needBlue - availableBlue;
-        }
-      }
-
-      if (deficitBlue > 0) {
-        const whiteNeeded = roundUpTo(deficitBlue * whiteToBlueRate, 100);
-
-        if (whiteNeeded <= remWhite) {
-          usedWhiteForBlue = whiteNeeded;
-          remWhite -= usedWhiteForBlue;
-          availableBlue += Math.floor(usedWhiteForBlue / whiteToBlueRate);
-          deficitBlue = needBlue - availableBlue;
-        } else {
-          usedWhiteForBlue = Math.floor(remWhite / 100) * 100;
-          remWhite -= usedWhiteForBlue;
-          availableBlue += Math.floor(usedWhiteForBlue / whiteToBlueRate);
-          deficitBlue = needBlue - availableBlue;
-        }
-      }
-
-      // Защита: обмены не могут быть отрицательными
-      usedWhiteForBlue = Math.max(usedWhiteForBlue, 0);
-      usedGreenForBlue = Math.max(usedGreenForBlue, 0);
-
-      if (deficitBlue > 0 || remWhite < 0 || remGreen < 0) {
-        return null;
-      }
-
-      return {
-        usedWhite: needWhite + usedWhiteForBlue,
-        usedGreen: needGreen + usedGreenForBlue,
-        usedBlue: needBlue,
-        exchangedWhite: usedWhiteForBlue,
-        exchangedGreen: usedGreenForBlue,
-        remainWhite: remWhite,
-        remainGreen: remGreen,
-        remainBlue: availableBlue - needBlue,
-      };
+  if (deficitBlue > 0) {
+    // Сколько зелёных нужно, округляем вниз к ближайшему 50, не превышая остаток
+    let greenNeeded = Math.floor(deficitBlue * greenToBlueRate);
+    greenNeeded = roundDownTo(greenNeeded, 50);
+    if (greenNeeded > remGreen) {
+      greenNeeded = roundDownTo(remGreen, 50);
     }
+    if (greenNeeded > 0) {
+      usedGreenForBlue = greenNeeded;
+      remGreen -= usedGreenForBlue;
+      availableBlue += Math.floor(usedGreenForBlue / greenToBlueRate);
+      deficitBlue = needBlue - availableBlue;
+    }
+  }
+
+  if (deficitBlue > 0) {
+    // Сколько белых нужно, округляем вниз к ближайшему 100, не превышая остаток
+    let whiteNeeded = Math.floor(deficitBlue * whiteToBlueRate);
+    whiteNeeded = roundDownTo(whiteNeeded, 100);
+    if (whiteNeeded > remWhite) {
+      whiteNeeded = roundDownTo(remWhite, 100);
+    }
+    if (whiteNeeded > 0) {
+      usedWhiteForBlue = whiteNeeded;
+      remWhite -= usedWhiteForBlue;
+      availableBlue += Math.floor(usedWhiteForBlue / whiteToBlueRate);
+      deficitBlue = needBlue - availableBlue;
+    }
+  }
+
+  usedWhiteForBlue = Math.max(usedWhiteForBlue, 0);
+  usedGreenForBlue = Math.max(usedGreenForBlue, 0);
+
+  if (deficitBlue > 0 || remWhite < 0 || remGreen < 0) {
+    return null;
+  }
+
+  return {
+    usedWhite: needWhite + usedWhiteForBlue,
+    usedGreen: needGreen + usedGreenForBlue,
+    usedBlue: needBlue,
+    exchangedWhite: usedWhiteForBlue,
+    exchangedGreen: usedGreenForBlue,
+    remainWhite: remWhite,
+    remainGreen: remGreen,
+    remainBlue: availableBlue - needBlue,
+  };
+}
+
 
     function calculate() {
       const white = parseFloat(document.getElementById("white").value);
