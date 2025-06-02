@@ -23,96 +23,96 @@
       return Math.floor(value / step) * step;
     }
 
-function canCreate(items, resources, costs, rates) {
-  const { white, green, blue } = resources;
-  const { white: wCost, green: gCost, blue: bCost } = costs;
-  const { greenToBlueRate, whiteToBlueRate } = rates;
+	function canCreate(items, resources, costs, rates) {
+	  const { white, green, blue } = resources;
+	  const { white: wCost, green: gCost, blue: bCost } = costs;
+	  const { greenToBlueRate, whiteToBlueRate } = rates;
 
-  let needWhite = items * wCost;
-  let needGreen = items * gCost;
-  let needBlue = items * bCost;
+	  let needWhite = items * wCost;
+	  let needGreen = items * gCost;
+	  let needBlue = items * bCost;
 
-  let remWhite = white - needWhite;
-  let remGreen = green - needGreen;
-  let availableBlue = blue;
+	  let remWhite = white - needWhite;
+	  let remGreen = green - needGreen;
+	  let availableBlue = blue;
 
-  let deficitBlue = needBlue - availableBlue;
+	  let deficitBlue = needBlue - availableBlue;
 
-  if (deficitBlue <= 0) {
-    // Синих достаточно без обменов
-    return {
-      usedWhite: needWhite,
-      usedGreen: needGreen,
-      usedBlue: needBlue,
-      exchangedWhite: 0,
-      exchangedGreen: 0,
-      remainWhite: remWhite,
-      remainGreen: remGreen,
-      remainBlue: availableBlue - needBlue,
-    };
-  }
+	  if (deficitBlue <= 0) {
+		// Синих достаточно без обменов
+		return {
+		  usedWhite: needWhite,
+		  usedGreen: needGreen,
+		  usedBlue: needBlue,
+		  exchangedWhite: 0,
+		  exchangedGreen: 0,
+		  remainWhite: remWhite,
+		  remainGreen: remGreen,
+		  remainBlue: availableBlue - needBlue,
+		};
+	  }
 
-  // Максимально возможные обмены
-  const maxGreenExchange = Math.floor(remGreen / 50) * 50;
-  const maxWhiteExchange = Math.floor(remWhite / 100) * 100;
+	  // Максимально возможные обмены
+	  const maxGreenExchange = Math.floor(remGreen / 50) * 50;
+	  const maxWhiteExchange = Math.floor(remWhite / 100) * 100;
 
-  let bestGreenUsed = 0;
-  let bestWhiteUsed = 0;
-  let maxTotalUsed = -1;
+	  let bestGreenUsed = 0;
+	  let bestWhiteUsed = 0;
+	  let maxTotalUsed = -1;
 
-  // Перебираем зелёные обмены от максимума к 0 с шагом 50
-  for (let greenUsed = maxGreenExchange; greenUsed >= 0; greenUsed -= 50) {
-    const blueFromGreen = greenUsed / greenToBlueRate;
-    const remainingBlueNeeded = deficitBlue - blueFromGreen;
+	  // Перебираем зелёные обмены от максимума к 0 с шагом 50
+	  for (let greenUsed = maxGreenExchange; greenUsed >= 0; greenUsed -= 50) {
+		const blueFromGreen = greenUsed / greenToBlueRate;
+		const remainingBlueNeeded = deficitBlue - blueFromGreen;
 
-    if (remainingBlueNeeded <= 0) {
-      // Зелёных хватает, белые не нужны
-      if (greenUsed > maxTotalUsed) {
-        bestGreenUsed = greenUsed;
-        bestWhiteUsed = 0;
-        maxTotalUsed = greenUsed;
-      }
-      continue;
-    }
+		if (remainingBlueNeeded <= 0) {
+		  // Зелёных хватает, белые не нужны
+		  if (greenUsed > maxTotalUsed) {
+			bestGreenUsed = greenUsed;
+			bestWhiteUsed = 0;
+			maxTotalUsed = greenUsed;
+		  }
+		  continue;
+		}
 
-    // Сколько белых нужно для оставшегося дефицита синих
-    let whiteNeeded = remainingBlueNeeded * whiteToBlueRate;
-    whiteNeeded = Math.ceil(whiteNeeded / 100) * 100; // округляем вверх к 100
+		// Сколько белых нужно для оставшегося дефицита синих
+		let whiteNeeded = remainingBlueNeeded * whiteToBlueRate;
+		whiteNeeded = Math.ceil(whiteNeeded / 100) * 100; // округляем вверх к 100
 
-    if (whiteNeeded <= maxWhiteExchange) {
-      const totalUsed = greenUsed + whiteNeeded;
-      if (totalUsed > maxTotalUsed) {
-        bestGreenUsed = greenUsed;
-        bestWhiteUsed = whiteNeeded;
-        maxTotalUsed = totalUsed;
-      }
-    }
-  }
+		if (whiteNeeded <= maxWhiteExchange) {
+		  const totalUsed = greenUsed + whiteNeeded;
+		  if (totalUsed > maxTotalUsed) {
+			bestGreenUsed = greenUsed;
+			bestWhiteUsed = whiteNeeded;
+			maxTotalUsed = totalUsed;
+		  }
+		}
+	  }
 
-  // Если не нашли подходящий вариант — невозможно покрыть дефицит
-  if (maxTotalUsed < 0) return null;
+	  // Если не нашли подходящий вариант — невозможно покрыть дефицит
+	  if (maxTotalUsed < 0) return null;
 
-  // Проверяем, что после обмена ресурсов хватает
-  remGreen -= bestGreenUsed;
-  remWhite -= bestWhiteUsed;
-  availableBlue += (bestGreenUsed / greenToBlueRate) + (bestWhiteUsed / whiteToBlueRate);
+	  // Проверяем, что после обмена ресурсов хватает
+	  remGreen -= bestGreenUsed;
+	  remWhite -= bestWhiteUsed;
+	  availableBlue += (bestGreenUsed / greenToBlueRate) + (bestWhiteUsed / whiteToBlueRate);
 
-  if (remGreen < 0 || remWhite < 0) return null;
+	  if (remGreen < 0 || remWhite < 0) return null;
 
-  deficitBlue = needBlue - availableBlue;
-  if (deficitBlue > 0) return null; // всё ещё не хватает
+	  deficitBlue = needBlue - availableBlue;
+	  if (deficitBlue > 0) return null; // всё ещё не хватает
 
-  return {
-    usedWhite: needWhite + bestWhiteUsed,
-    usedGreen: needGreen + bestGreenUsed,
-    usedBlue: needBlue,
-    exchangedWhite: bestWhiteUsed,
-    exchangedGreen: bestGreenUsed,
-    remainWhite: remWhite,
-    remainGreen: remGreen,
-    remainBlue: availableBlue - needBlue,
-  };
-}
+	  return {
+		usedWhite: needWhite + bestWhiteUsed,
+		usedGreen: needGreen + bestGreenUsed,
+		usedBlue: needBlue,
+		exchangedWhite: bestWhiteUsed,
+		exchangedGreen: bestGreenUsed,
+		remainWhite: remWhite,
+		remainGreen: remGreen,
+		remainBlue: availableBlue - needBlue,
+	  };
+	}
 
 
     function calculate() {
