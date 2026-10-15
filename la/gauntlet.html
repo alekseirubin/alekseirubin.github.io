@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Калькулятор изменения боеспособности в зависимости от уровня перчатки.">
+<title>Калькулятор перчатки</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f6fb;
+    --card: #ffffff;
+    --text: #172033;
+    --muted: #65718a;
+    --line: #dce3ef;
+    --accent: #4263eb;
+    --accent-soft: #edf1ff;
+    --green: #11845b;
+    --red: #c2414b;
+    --shadow: 0 10px 28px rgba(28, 44, 78, .07);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { width: min(100% - 32px, 940px); margin: 0 auto; padding: 34px 0 48px; }
+  header { margin-bottom: 24px; }
+  .eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 800; }
+  h1 { margin: 5px 0 7px; font-size: clamp(27px, 4vw, 36px); letter-spacing: -.035em; line-height: 1.15; }
+  .intro { margin: 0; color: var(--muted); max-width: 690px; font-size: 14px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 23px; margin-bottom: 17px; }
+  .panel-head { display:flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+  .step { display:grid; place-items:center; flex: 0 0 32px; width:32px; height:32px; border-radius:10px; background:var(--accent-soft); color:var(--accent); font-size:13px; font-weight:800; }
+  h2 { margin: 1px 0 3px; font-size: 18px; letter-spacing: -.02em; }
+  .sub { margin: 0; color:var(--muted); font-size: 12px; }
+  .grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; }
+  .field { min-width:0; }
+  label { display:block; margin-bottom:6px; color:#344057; font-size:13px; font-weight:650; }
+  .hint { display:block; margin-top:3px; color:var(--muted); font-size:11px; font-weight:400; }
+  input[type="number"] {
+    display:block; width:100%; min-width:0; padding:11px 12px; border:1px solid #cbd5e3; border-radius:10px;
+    background:#fff; color:var(--text); font:inherit; font-size:14px; outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  input[type="number"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(66,99,235,.12); }
+  .levels { display:grid; grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr); align-items:end; gap:12px; }
+  .arrow { align-self:center; text-align:center; color:var(--accent); font-size:22px; padding-top:19px; }
+  .toggle-row { display:flex; gap:12px; align-items:center; padding-top:3px; }
+  input[type="checkbox"] { width:18px; height:18px; accent-color:var(--accent); }
+  .toggle-row label { margin:0; cursor:pointer; }
+  .results { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .damage-results { margin-top:12px; padding-top:14px; border-top:1px solid var(--line); }
+  .metric { padding:17px; border-radius:14px; background:#f7f9fd; border:1px solid var(--line); min-width:0; }
+  .metric.primary { background:#eef2ff; border-color:#dce3ff; }
+  .metric-label { color:var(--muted); font-size:12px; font-weight:650; margin-bottom:7px; }
+  .metric-value { font-size:clamp(20px, 3vw, 28px); line-height:1.15; font-weight:850; letter-spacing:-.035em; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+  .metric-note { margin-top:6px; color:var(--muted); font-size:11px; }
+  .positive { color:var(--green); }
+  .negative { color:var(--red); }
+  .changes { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+  .change { border-top:1px solid var(--line); padding:12px 5px 0; min-width:0; }
+  .change span { display:block; font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .change strong { font-size:15px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  .empty { margin-top:14px; padding:12px 14px; border-radius:10px; background:#fff8e6; border:1px solid #f1dfac; color:#765a16; font-size:12px; }
+  .footer { color:var(--muted); font-size:11px; text-align:center; padding-top:8px; }
+  @media (max-width: 680px) {
+    .wrap { width:min(100% - 20px, 940px); padding-top:22px; }
+    .panel { padding:17px; border-radius:15px; }
+    .grid { grid-template-columns:1fr; gap:12px; }
+    .results { grid-template-columns:1fr; }
+    .metric { padding:14px 16px; }
+    .metric-value { font-size:24px; }
+    .changes { grid-template-columns:1fr; gap:12px; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header>
+    <div class="eyebrow">Lost Ark · Перчатка</div>
+    <h1>Калькулятор перчатки</h1>
+    <p class="intro">Укажите текущие характеристики персонажа и уровни перчатки — калькулятор оценит боеспособность (БС) после улучшения. Все результаты пересчитываются автоматически.</p>
+  </header>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div class="step">01</div>
+      <div><h2>Уровень перчатки</h2><p class="sub">Сравнение текущего уровня с целевым</p></div>
+    </div>
+    <div class="levels">
+      <div class="field"><label for="start_lv">Текущий уровень</label><input type="number" id="start_lv" min="0" max="25" step="1" value="20"></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="field"><label for="target_lv">Целевой уровень</label><input type="number" id="target_lv" min="0" max="25" step="1" value="21"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div class="step">02</div>
+      <div><h2>Текущие параметры персонажа</h2><p class="sub">Значения из характеристик персонажа</p></div>
+    </div>
+    <div class="grid">
+      <div class="field"><label for="cur_cp">Текущая боеспособность (БС)</label><input type="number" id="cur_cp" min="0" step="0.01" placeholder="Например, 6500"></div>
+      <div class="field"><label for="base_atk">Базовая сила атаки<span class="hint"></span></label><input type="number" id="base_atk" min="0" step="1" placeholder="Например, 200000"></div>
+      <div class="field"><label for="cur_stat">Основная характеристика (сила, ловкость, интеллект)</label><input type="number" id="cur_stat" min="0" step="1" placeholder="Например, 800000"></div>
+      <div class="field"><label for="cur_watk">Урон оружия</label><input type="number" id="cur_watk" min="0" step="1" placeholder="Например, 250000"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div class="step">03</div>
+      <div><h2>Дополнительные бонусы</h2><p class="sub"></p></div>
+    </div>
+    <div class="grid">
+      <div class="field"><label for="stat_pct">Бонус характеристик от образов / питомцев в поместье (%)</label><input type="number" id="stat_pct" min="0" max="100" step="0.1" value="9"></div>
+      <div class="field"><label for="gem_pct">Бонус от самоцветов (%)</label><input type="number" id="gem_pct" min="0" max="100" step="0.1" value="0"></div>
+      <div class="field"><label for="acc_pct">Урон оружия от бижутерии (%)</label><input type="number" id="acc_pct" min="0" max="100" step="0.1" value="0"></div>
+      <div class="field"><label for="karma_pct">Урон оружия от кармы (%)</label><input type="number" id="karma_pct" min="0" max="100" step="0.1" value="0"></div>
+      <div class="field">
+        <div class="toggle-row"><input type="checkbox" id="stone_97"><label for="stone_97">Фетранит 97 / 10·6<span class="hint">Добавляет 1,5% к базовой силе атаки</span></label></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <div class="panel-head">
+      <div class="step">04</div>
+      <div><h2>Результат</h2><p class="sub">Оценка изменения БС только от разницы уровней перчатки</p></div>
+    </div>
+    <div class="results">
+      <div class="metric primary"><div class="metric-label">Итоговая боеспособность</div><div class="metric-value" id="final_cp">—</div><div class="metric-note" id="final_note">Заполните текущие параметры</div></div>
+      <div class="metric"><div class="metric-label">Изменение боеспособности</div><div class="metric-value" id="cp_diff">—</div><div class="metric-note" id="diff_note">После смены уровня перчатки</div></div>
+      <div class="metric"><div class="metric-label">Изменение БС (%)</div><div class="metric-value" id="cp_diff_pct">—</div><div class="metric-note">Относительно текущего БС</div></div>
+    </div>
+    <div class="results damage-results">
+      <div class="metric"><div class="metric-label">Текущая базовая сила атаки</div><div class="metric-value" id="current_base_power">—</div><div class="metric-note">Значение из введенных параметров</div></div>
+      <div class="metric"><div class="metric-label">Расчетная базовая сила атаки</div><div class="metric-value" id="target_base_power">—</div><div class="metric-note" id="target_base_power_note">После изменения перчатки</div></div>
+      <div class="metric primary"><div class="metric-label">Оценка прироста урона</div><div class="metric-value" id="damage_diff_pct">—</div><div class="metric-note">При неизменных прочих множителях урона</div></div>
+    </div>
+    <p class="sub" style="margin-top:12px">Оценка урона приблизительная: она отражает изменение базовой силы атаки.</p>
+    <div class="changes">
+      <div class="change"><span>Прирост характеристики</span><strong id="add_stat">—</strong></div>
+      <div class="change"><span>Прирост урона оружия</span><strong id="add_watk">—</strong></div>
+    </div>
+    <div class="empty" id="input_hint">Чтобы рассчитать боеспособность, заполни все четыре текущих параметра выше.</div>
+  </section>
+</main>
+<script>
+const WEAPON_ATK_INC = [3266,3380,3497,3620,3747,3879,4014,4154,4299,4450,4607,4767,4933,5108,5285,5471,4831,4953,5076,5203,5334,5466,5604,5743,5887];
+const ARMOR_MAIN = {
+  head:    [1886,1952,2020,2090,2164,2240,2319,2399,2483,2570,2661,2753,2850,2949,3053,3159,2793,2860,2932,3005,3081,3157,3236,3317,3400],
+  shoulder:[2008,2077,2150,2225,2304,2383,2468,2554,2642,2736,2830,2931,3033,3139,3249,3363,2971,3045,3120,3198,3279,3360,3444,3531,3618],
+  chest:   [1509,1561,1616,1673,1731,1793,1854,1919,1987,2056,2128,2203,2280,2359,2442,2528,2233,2289,2345,2404,2465,2525,2589,2654,2720],
+  pants:   [1630,1687,1747,1807,1870,1936,2003,2074,2146,2222,2300,2379,2463,2550,2637,2731,2414,2472,2534,2597,2663,2729,2797,2867,2938],
+  gloves:  [2263,2342,2424,2509,2597,2688,2781,2880,2980,3084,3192,3304,3420,3540,3662,3792,3350,3433,3518,3606,3697,3788,3884,3981,4080]
+};
+const WANGAP_ANCHOR_LEVEL = 21;
+const WANGAP_ANCHOR = {stat:52381, watk:21726, baseAtk:5980, basePct:2.0};
+
+function n(id){ return Number(document.getElementById(id).value || 0); }
+function fmt(x, d=0){ return Number(x || 0).toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+function pct(x){ return (x*100).toFixed(2) + '%'; }
+function clampLevel(v, lo, hi){ return Math.max(lo, Math.min(hi, Math.floor(Number(v || 0)))); }
+
+function armorAvgInc(level){
+  if(level < 1 || level > 25) return 0;
+  const idx = level - 1;
+  const parts = Object.values(ARMOR_MAIN);
+  return parts.reduce((s, arr) => s + arr[idx], 0) / parts.length;
+}
+function cum(arr, level){
+  let end = clampLevel(level, 0, 25);
+  let s = 0;
+  for(let i=0;i<end;i++) s += arr[i];
+  return s;
+}
+function cumArmorAvg(level){
+  let s = 0;
+  for(let i=1;i<=clampLevel(level,0,25);i++) s += armorAvgInc(i);
+  return s;
+}
+const STAT_SCALE = WANGAP_ANCHOR.stat / cumArmorAvg(WANGAP_ANCHOR_LEVEL);
+const WATK_SCALE = WANGAP_ANCHOR.watk / cum(WEAPON_ATK_INC, WANGAP_ANCHOR_LEVEL);
+const BASE_ATK_SCALE = WANGAP_ANCHOR.baseAtk / cum(WEAPON_ATK_INC, WANGAP_ANCHOR_LEVEL);
+
+function wangapBasePct(level){
+  const lv = clampLevel(level,0,25);
+  if(lv >= 20) return 2.0;
+  if(lv >= 10) return 1.0;
+  return 0;
+}
+function wangapTotal(level){
+  const lv = clampLevel(level,0,25);
+  return {
+    stat: Math.round(cumArmorAvg(lv) * STAT_SCALE),
+    watk: Math.round(cum(WEAPON_ATK_INC, lv) * WATK_SCALE),
+    baseAtk: Math.round(cum(WEAPON_ATK_INC, lv) * BASE_ATK_SCALE),
+    basePct: wangapBasePct(lv)
+  };
+}
+function wangapDelta(start, target){
+  const a = wangapTotal(start), b = wangapTotal(target);
+  return {stat:b.stat-a.stat, watk:b.watk-a.watk, baseAtk:b.baseAtk-a.baseAtk, basePct:b.basePct-a.basePct};
+}
+
+function signedFmt(x, d=0) {
+  return (x > 0 ? '+' : x < 0 ? '−' : '') + fmt(Math.abs(x), d);
+}
+function setText(id, value) { document.getElementById(id).textContent = value; }
+
+function saveValues() {
+  document.querySelectorAll('input').forEach(el => {
+    if (el.type === 'checkbox') {
+      localStorage.setItem(el.id, el.checked);
+    } else {
+      localStorage.setItem(el.id, el.value);
+    }
+  });
+}
+
+function loadValues() {
+  document.querySelectorAll('input').forEach(el => {
+    const saved = localStorage.getItem(el.id);
+    if (saved !== null) {
+      if (el.type === 'checkbox') {
+        el.checked = saved === 'true';
+      } else {
+        el.value = saved;
+      }
+    }
+  });
+}
+
+function updateCalculator() {
+  const startEl = document.getElementById('start_lv');
+  const targetEl = document.getElementById('target_lv');
+  const start = clampLevel(startEl.value, 0, 25);
+  const target = clampLevel(targetEl.value, 0, 25);
+  startEl.value = start;
+  targetEl.value = target;
+
+  const delta = wangapDelta(start, target);
+  setText('add_stat', signedFmt(delta.stat));
+  setText('add_watk', signedFmt(delta.watk));
+
+  const curCp = n('cur_cp');
+  const baseAtk = n('base_atk');
+  const stat = n('cur_stat');
+  const watk = n('cur_watk');
+  const hint = document.getElementById('input_hint');
+  const required = curCp > 0 && baseAtk > 0 && stat > 0 && watk > 0;
+  const validBonuses = n('stat_pct') >= 0 && n('acc_pct') >= 0 && n('karma_pct') >= 0;
+  if (!required || !validBonuses) {
+    setText('final_cp', '—');
+    setText('cp_diff', '—');
+    setText('cp_diff_pct', '—');
+    setText('current_base_power', '—');
+    setText('target_base_power', '—');
+    setText('target_base_power_note', 'После изменения перчатки');
+    setText('damage_diff_pct', '—');
+    setText('final_note', 'Заполните текущие параметры');
+    setText('diff_note', 'После смены уровня перчатки');
+    document.getElementById('cp_diff').className = 'metric-value';
+    document.getElementById('cp_diff_pct').className = 'metric-value';
+    document.getElementById('damage_diff_pct').className = 'metric-value';
+    hint.style.display = 'block';
+    hint.textContent = validBonuses
+      ? 'Чтобы рассчитать боеспособность, заполните все четыре текущих параметра выше.'
+      : 'Процентные бонусы не должны быть отрицательными.';
+    saveValues();
+    return;
+  }
+  hint.style.display = 'none';
+
+  const statMultiplier = 1 + n('stat_pct') / 100;
+  const watkMultiplier = 1 + n('acc_pct') / 100 + n('karma_pct') / 100;
+  const gemPct = n('gem_pct') / 100;
+  const stonePct = document.getElementById('stone_97').checked ? 0.015 : 0;
+  const baseConstant = baseAtk * 288 / 100000;
+  const cpMultiplier = curCp / baseConstant;
+  const baseStatVal = Math.round(stat / statMultiplier);
+  const finalStat = Math.floor((baseStatVal + delta.stat) * statMultiplier);
+  const baseWatkVal = Math.round(watk / watkMultiplier);
+  const finalWatk = Math.floor((baseWatkVal + delta.watk) * watkMultiplier);
+  const midBaseAtk = Math.sqrt(Math.max(0, (finalStat * finalWatk) / 6));
+  const totalAtkPct = 1 + gemPct + stonePct + delta.basePct / 100;
+  const finalBaseAtk = (midBaseAtk + delta.baseAtk) * totalAtkPct;
+  const finalCp = (finalBaseAtk * 288 / 100000) * cpMultiplier;
+  const cpDiff = finalCp - curCp;
+  const cpDiffPct = (cpDiff / curCp) * 100;
+  const attackDiff = finalBaseAtk - baseAtk;
+  const attackDiffPct = (attackDiff / baseAtk) * 100;
+
+  setText('final_cp', fmt(finalCp, 2));
+  setText('cp_diff', signedFmt(cpDiff, 2));
+  setText('cp_diff_pct', (cpDiff > 0 ? '+' : cpDiff < 0 ? '−' : '') + fmt(Math.abs(cpDiffPct), 2) + '%');
+  setText('current_base_power', fmt(baseAtk, 2));
+  setText('target_base_power', fmt(finalBaseAtk, 2));
+  setText('target_base_power_note', `Изменение: ${signedFmt(attackDiff, 2)} (${attackDiffPct > 0 ? '+' : attackDiffPct < 0 ? '−' : ''}${fmt(Math.abs(attackDiffPct), 2)}%)`);
+  setText('damage_diff_pct', (attackDiffPct > 0 ? '+' : attackDiffPct < 0 ? '−' : '') + fmt(Math.abs(attackDiffPct), 2) + '%');
+  setText('final_note', `Уровень перчатки ${start} → ${target}`);
+  setText('diff_note', cpDiff >= 0 ? 'Ожидаемый прирост боеспособности' : 'Ожидаемое снижение боеспособности');
+  document.getElementById('cp_diff').className = 'metric-value ' + (cpDiff >= 0 ? 'positive' : 'negative');
+  document.getElementById('cp_diff_pct').className = 'metric-value ' + (cpDiff >= 0 ? 'positive' : 'negative');
+  document.getElementById('damage_diff_pct').className = 'metric-value ' + (attackDiffPct >= 0 ? 'positive' : 'negative');
+
+  saveValues();
+}
+
+loadValues();
+
+document.querySelectorAll('input').forEach(el => {
+  el.addEventListener('input', updateCalculator);
+  el.addEventListener('change', updateCalculator);
+});
+updateCalculator();
+</script>
+</body>
+</html>
